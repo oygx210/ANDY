@@ -4,7 +4,7 @@ Copyright@RM-Lab.
 
 Andy is a nonholonomic modeling toolbox for hybrid multibody dynamic systems.
 
-Please contact jmechw@vt.edu for technical details.
+Please contact Jiamin Wang (PhD Student at RM-Lab) - jmechw@vt.edu for technical details.
 
 ## Examples
 To run the examples, please make sure that the library is in the correct relative path with respect to your modeling script, [PathSetup.m] will help you setup the library path profiles. Modify if necessary.
@@ -16,4 +16,8 @@ For <Passive Walker>: Run [PassiveWalker_Simulation.m] if you are only intereste
 For <Swing>: Run Modeling and Simulation in [SwingBar.m].
 
 ## Updates
-Future updates will be made consistantly. 
+Future updates will be made consistantly to improve calculation efficiency and include analytical tools.
+
+Next Update (Expected before April 23th) Preview:
+Faster Symbolic Modeling - No longer not require the matlab 'simplify' function during the generation of dynamics, which greatly reduced calculation time and improves system.
+Add Example of a Float Based 3D Quadruped Model.
