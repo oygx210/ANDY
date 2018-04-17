@@ -19,5 +19,7 @@ For <Swing>: Run Modeling and Simulation in [SwingBar.m].
 Future updates will be made consistantly to improve calculation efficiency and include analytical tools.
 
 Next Update (Expected before April 23th) Preview:
+
 Faster Symbolic Modeling - No longer not require the matlab 'simplify' function during the generation of dynamics, which greatly reduced calculation time and improves system.
+
 Add Example of a Float Based 3D Quadruped Model.
