@@ -180,8 +180,10 @@ fixIFoot.editJump();
 % p(1)=FPos(act,flow,count,t,q,p,u,s,l);
 %}
 PW.Model.makeDynamics();
+%The End of Modeling
 
-
+%Uncomment below and run to see plots of test simulation
+%{
 %% Result Process (Contains Primitive Codes for Rough Simulation)
 [contSym]=PW.Model.Continuous;
 [paramSym]=PW.Model.Parameter(:,1);
