@@ -116,6 +116,7 @@ JointDamper.setProp(sym(U.b*eye(6,6)),[qx.dot(1);qy.dot(1);qi1.dot(1);qi2.dot(1)
              'oFootLockX' 'ohx';
              'oFootLockY' 'ohy';
            });
+%Set Holonomic Constraints
 iKneeLock.setHCons(qi1.dot(0)-qi2.dot(0),U.c);
 iFootLockX.setHCons(jSimplify([1 0 0]*(LiFoot.rootTransDis()-[P.fx;0;0])),U.c);
 iFootLockY.setHCons(jSimplify([0 1 0]*(LiFoot.rootTransDis()-[P.fx;0;0])),U.c);
@@ -123,8 +124,10 @@ oKneeLock.setHCons(qo1.dot(0)-qo2.dot(0),U.c);
 oFootLockX.setHCons(jSimplify([1 0 0]*(LoFoot.rootTransDis()-[P.fx;0;0])),U.c);
 oFootLockY.setHCons(jSimplify([0 1 0]*(LoFoot.rootTransDis()-[P.fx;0;0])),U.c);
 
-%% Modeling Generation Initialization
-PW.Model.Init();
+%% Modeling Initialization
+PW.Model.Init();%Initiate the model (generate all the symbolic dynamics)
+
+%% Declare Flows and Jumps
 [IFixOOpen,IFixOLock,IBendOLock,IOpenOFix,ILockOFix,ILockOBend]=...
 PW.Model.genNode({'IFixOOpen';'IFixOLock';'IBendOLock';'IOpenOFix';'ILockOFix';'ILockOBend'});
 [lockOKnee,bendIKnee,fixOFoot,lockIKnee,bendOKnee,fixIFoot]=...
@@ -136,13 +139,22 @@ PW.Model.genEdge({
                 'Bend Outer Knee' 'ILockOFix' 'ILockOBend';
                 'Fix Inner Foot' 'ILockOBend' 'IFixOOpen';
                 });
-PW.Model.plotGraph(2);
+PW.Model.plotGraph(2); %% View the Hybrid automata map
+
+%% Generate the Dynamics of Flows
 IFixOOpen.genFlowEOM({'iKneeLock';'iFootLockX';'iFootLockY'});
 IFixOLock.genFlowEOM({'oKneeLock';'iKneeLock';'iFootLockX';'iFootLockY'});
 IBendOLock.genFlowEOM({'oKneeLock';'iFootLockX';'iFootLockY'});
 IOpenOFix.genFlowEOM({'oKneeLock';'oFootLockX';'oFootLockY'});
 ILockOFix.genFlowEOM({'iKneeLock';'oKneeLock';'oFootLockX';'oFootLockY'});
 ILockOBend.genFlowEOM({'iKneeLock';'oFootLockX';'oFootLockY'});
+
+%%Generate the Templates of Jumps
+%Following Content Generates the Template for Jump Functions (Guard
+% and Reset Mapping), which requires some user modification.
+%Since the Current Jump Functions (Located in ./Dynamics_PassiveWalker) 
+%has already been generated, the following code is unnecessary unless 
+%you are interested in testing them.
 %{
 lockOKnee.makeJump({'CONDITION_',qo2.dot(0)>=qo1.dot(0);
                     'LockAngle',qi1.dot(0);
@@ -179,9 +191,12 @@ fixIFoot.editJump();
 % q(2)=YReal(act,flow,count,t,q,p,u,s,l);
 % p(1)=FPos(act,flow,count,t,q,p,u,s,l);
 %}
+
+%% Compile the System Dynamics into Files
 PW.Model.makeDynamics();
 %The End of Modeling
 
+%% Test Simulation
 %Uncomment below and run to see plots of test simulation
 %{
 %% Result Process (Contains Primitive Codes for Rough Simulation)
