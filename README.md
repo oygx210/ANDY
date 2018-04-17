@@ -20,6 +20,6 @@ Future updates will be made consistantly to improve calculation efficiency and i
 
 Next Update (Expected before April 23th) Preview:
 
-Faster Symbolic Modeling - No longer not require the matlab 'simplify' function during the generation of dynamics, which greatly reduced calculation time and improves system.
+1. Add new coding notion that no longer require the matlab 'simplify' function during the generation of dynamics, which greatly reduced calculation time and improves system.
 
-Add Example of a Float Based 3D Quadruped Model.
+3. Add Example of a Float Based 3D Quadruped Model.
