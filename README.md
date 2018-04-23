@@ -8,7 +8,7 @@ Please contact Jiamin Wang (PhD Student at RM-Lab) - jmechw@vt.edu for technical
 
 MATLAB Version Requirement: 2017 or later.
 
-## Latest Notification
+## Latest Notification (04/23/2018)
 1. New version available on request, please contact jmechw@vt.edu if you want the latest version of ANDY.
 
 ## Examples
