@@ -20,8 +20,8 @@ classdef kForce < kEffect
             obj@kEffect(inName,inBody.System,inBaseFrame,inDirFrame);
             obj.setType(3,1);
             
-            obj.Parameter=obj.ReferenceFrame.rootRotMat;
-            obj.DirVector=obj.BaseFrame.rootTransVel;
+%             obj.Parameter=obj.ReferenceFrame.rootRotMat;
+%             obj.DirVector=obj.BaseFrame.rootTransVel;
             
             obj.Body=inBody;
             obj.Body.Force.reg(obj);
@@ -34,7 +34,8 @@ classdef kForce < kEffect
                 error(obj.msgStr('Error','The Force Value need to be a 3*1 sym!'));
             end
             
-            obj.setProperty(obj.Parameter,obj.DirVector,inVal);
+%             obj.setProperty(obj.DirVector,obj.Parameter,inVal);
+            obj.setProperty(obj.BaseFrame.getTransSym(1),sym(eye(3,3)),inVal);
         end
     end
 end

@@ -15,8 +15,54 @@ classdef kSystem < jObj
         Body;       %Body       (Inertia; Force; Torque)
         Damper;     %Damper
         Potential;  %Potential Energy
-        
         Constraint; %Constraint (Will be Converted to Generalized Force with Multiplier)
+    end
+    
+    methods(Access=public)
+        function obj=genUserFunc(obj,inSym,inName,varargin)
+            [t,c,q,p,s,u]=obj.System.getSymbolVectors();
+            paramSym=c(:,1);
+            paramVal=c(:,2);
+            if isempty(q)
+                error(obj.msgStr('Error','System must possess continuous state!'))
+            end
+            if isempty(p)
+                p=sym('DISCRETE__');
+            end
+            if isempty(u)
+                u=sym('INPUT__');
+            end
+            if isempty(s)
+                s=sym('NHSIGNAL__');
+            else
+                s=s(:,1);
+            end
+            
+            inPath=pwd;
+            inSparse=false;
+            if nargin>4
+                inSparse=varargin{2};
+                inPath=varargin{1};
+            elseif nargin>3
+                inPath=varargin{1};
+            end
+                
+            fileName=strcat(obj.tagStr(inName),'.m');
+            
+            curPath=pwd;
+            cd(inPath);
+            
+            if inSparse
+                matlabFunction(subs(inSym,paramSym,paramVal),'File',fileName,'Sparse',true,'Vars',{t,q,p,u,s});
+                funcContent={sparse2fullFunc(fReadLine(fileName))};
+                funcID=fopen(fileName,'w');
+                fWriteLine(funcID,funcContent);
+            else
+                matlabFunction(subs(inSym,paramSym,paramVal),'File',fileName,'Sparse',false,'Vars',{t,q,p,u,s});
+            end
+            
+            cd(curPath)
+        end
     end
     
     methods(Access=public)
@@ -48,7 +94,7 @@ classdef kSystem < jObj
                 if paramSize(2)==3
                     for ii=1:paramSize(1)
                         curParam=kParam(inParamSet{ii,1},obj,inParamSet{ii,2},inParamSet{ii,3});
-                        eval("paramHandle."+char(curParam)+"=curParam;");
+                        eval(strcat('paramHandle.',char(curParam),'=curParam;'));
                     end
                 else
                     error(obj.msgStr('Error','Input Data in the form of {symbol,description,val;...}'));
@@ -65,7 +111,7 @@ classdef kSystem < jObj
                 if inputSize(2)==2
                     for ii=1:inputSize(1)
                         curInput=kInput(inInputSet{ii,1},obj,inInputSet{ii,2});
-                        eval("inputHandle."+char(curInput)+"=curInput;");
+                        eval(strcat('inputHandle.',char(curInput),'=curInput;'));
                     end
                 else
                     error(obj.msgStr('Error','Input Data in the form of {symbol,description,val;...}'));
@@ -100,7 +146,7 @@ classdef kSystem < jObj
                 if discSize(2)==2
                     for ii=1:discSize(1)
                         curDisc=kDisc(inDiscSet{ii,1},obj,inDiscSet{ii,2});
-                        eval("discHandle."+char(curDisc)+"=curDisc;");
+                        eval(strcat('discHandle.',char(curDisc),'=curDisc;'));
                     end
                 else
                     error(obj.msgStr('Error','Input Data in the form of {(name1) (des1);(name2) (des2);...}'));
@@ -252,18 +298,30 @@ classdef kSystem < jObj
             end
         end
         
+        function [t,c,q,p,s,u]=getSymbolVectors(obj)
+            t=obj.TimeVar;
+            [param,val]=obj.getParamVector();
+            c=[param,val];
+            p=obj.getDiscVector();
+            u=obj.getInputVector();
+            q=[obj.getContVector(0);obj.getContVector(1)];
+            [Sym,Val]=obj.getNHSignalVector();
+            s=[Sym,Val];
+        end
+        
         function obj=setOrder(obj,inOrder)
             if floor(inOrder)>obj.Order
                 obj.Order=floor(inOrder);
             end
         end
         
-        function Cons=getConsSet(obj,inConsList,varargin)            
+        function Cons=getConsSet(obj,inConsList,varargin)
+            Cons.Expression={};
             Cons.ConsVector=[];
             Cons.ConsJacobian=[];
             Cons.ConsCoriolis=[];
             Cons.ConsGFMatrix=[];
-            
+             
             consList=obj.Constraint.get(inConsList);
             if isempty(consList)
                 return;
@@ -276,11 +334,13 @@ classdef kSystem < jObj
                     Cons.ConsJacobian(ii,:)=consList{ii}.Jacobian;
                     Cons.ConsCoriolis(ii,1)=consList{ii}.Coriolis;
                     Cons.ConsGFMatrix=[Cons.ConsGFMatrix,consList{ii}.GFMatrix];
+                    Cons.Expression=[Cons.Expression,consList{ii}.GFExpression];
                 end
             end
         end
         
-        function Cons=genBaseCons(obj)            
+        function Cons=genBaseCons(obj)
+            Cons.Expression={};
             Cons.ConsVector=[];
             Cons.ConsJacobian=[];
             Cons.ConsCoriolis=[];
@@ -296,8 +356,9 @@ classdef kSystem < jObj
             jac=sym(0)*zeros(numel(consList),numel(obj.getContVector(1)));
             cor=sym(0)*zeros(numel(consList),1);
             gf=sym(0)*zeros(numel(obj.getContVector(1)),numel(consList));
-            parfor ii=1:numel(consList)
+            for ii=1:numel(consList)
                 [jac(ii,:),cor(ii,1),gf(:,ii)]=consList(ii).genConsProp();
+                Cons.Expression={Cons.Expression{:},consList(ii).GFExpression};
             end
             for ii=1:numel(consList)
                 Cons.ConsVector(ii,1)=consList(ii).Sym;
@@ -334,55 +395,136 @@ classdef kSystem < jObj
             torqueList=[torqueList{:}];
             forceNumCounter=0;
             
+            
+            EOM.InertialMatrix=sym(zeros(dimension,dimension));
+            EOM.CoriolisForce=sym(zeros(dimension,1));
+            EOM.DampingForce=sym(zeros(dimension,1));
+            EOM.PotentialForce=sym(zeros(dimension,1));
+            EOM.ExternalForce=sym(zeros(dimension,1));
+            EOM.InputForce=sym(zeros(dimension,1));
+            
             MMat=sym(zeros(dimension,dimension,numel(bodyList)));
             FMat=sym(zeros(dimension,numel(bodyList)+numel(damperList)+numel(potList)+numel(forceList)+numel(torqueList)));
+            
             curCnt=forceNumCounter;
-            parfor ii=1:numel(bodyList)
+            for ii=1:numel(bodyList)
                 forceNumCounter=forceNumCounter+1;
                 [MMat(:,:,ii),FMat(:,curCnt+ii)]=bodyList(ii).genInertia(simpStyle);
-            end
-            for ii=1:numel(bodyList)
-                bodyList(ii).setInertia(MMat(:,:,ii),FMat(:,curCnt+ii));
+                EOM.InertialMatrix=EOM.InertialMatrix+MMat(:,:,ii);
+                EOM.CoriolisForce=EOM.CoriolisForce+FMat(:,ii);
             end
             
             curCnt=forceNumCounter;
-            parfor ii=1:numel(damperList)
+            for ii=1:numel(damperList)
                 forceNumCounter=forceNumCounter+1;
                 FMat(:,curCnt+ii)=damperList(ii).genGF(simpStyle);
-            end
-            for ii=1:numel(damperList)
-                damperList(ii).setGF(FMat(:,curCnt+ii));
+                if any(any(damperList(ii).CompileInfo.InputJacobian~=0)~=0)
+                    EOM.InputForce=EOM.InputForce+FMat(:,curCnt+ii);
+                else
+                    EOM.DampingForce=EOM.DampingForce+FMat(:,curCnt+ii);
+                end
             end
  
             curCnt=forceNumCounter;
-            parfor ii=1:numel(potList)
+            for ii=1:numel(potList)
                 forceNumCounter=forceNumCounter+1;
                 FMat(:,curCnt+ii)=potList(ii).genGF(simpStyle);
-            end
-            for ii=1:numel(potList)
-                potList(ii).setGF(FMat(:,curCnt+ii));
+                if any(any(potList(ii).CompileInfo.InputJacobian~=0)~=0)
+                    EOM.InputForce=EOM.InputForce+FMat(:,curCnt+ii);
+                else
+                    EOM.PotentialForce=EOM.PotentialForce+FMat(:,curCnt+ii);
+                end
             end
  
             curCnt=forceNumCounter;
-            parfor ii=1:numel(forceList)
+            for ii=1:numel(forceList)
                 forceNumCounter=forceNumCounter+1;
                 FMat(:,curCnt+ii)=forceList(ii).genGF(simpStyle);
-            end
-            for ii=1:numel(forceList)
-                forceList(ii).setGF(FMat(:,curCnt+ii));
+                if any(any(forceList(ii).CompileInfo.InputJacobian~=0)~=0)
+                    EOM.InputForce=EOM.InputForce+FMat(:,curCnt+ii);
+                else
+                    EOM.ExternalForce=EOM.ExternalForce+FMat(:,curCnt+ii);
+                end
             end
             
             curCnt=forceNumCounter;
-            parfor ii=1:numel(torqueList)
+            for ii=1:numel(torqueList)
                 forceNumCounter=forceNumCounter+1;
                 FMat(:,curCnt+ii)=torqueList(ii).genGF(simpStyle);
+                if any(any(torqueList(ii).CompileInfo.InputJacobian~=0)~=0)
+                    EOM.InputForce=EOM.InputForce+FMat(:,curCnt+ii);
+                else
+                    EOM.ExternalForce=EOM.ExternalForce+FMat(:,curCnt+ii);
+                end
             end
-            for ii=1:numel(torqueList)
-                torqueList(ii).setGF(FMat(:,curCnt+ii));
+        end
+        
+        function info=genCompileInfo(obj)
+            bodyList=obj.Body.get(obj.Body.Content);
+            damperList=obj.Damper.get(obj.Damper.Content);
+            potList=obj.Potential.get(obj.Potential.Content);
+            forceList={};
+            torqueList={};
+            for ii=1:numel(bodyList)
+                forceList=cat(1,forceList,bodyList{ii}.Force.get(bodyList{ii}.Force.Content));
+                torqueList=cat(1,torqueList,bodyList{ii}.Torque.get(bodyList{ii}.Torque.Content));
+            end
+            consList=obj.Constraint.get(obj.Constraint.Content);
+            
+            info.Inertial.Mass=[];
+            info.Inertial.Moment=[];
+            info.Inertial.BaseFrame=[];
+            for ii=1:numel(bodyList)
+                info.Inertial.Mass=[info.Inertial.Mass bodyList{ii}.CompileInfo.Mass];
+                info.Inertial.Moment=[info.Inertial.Moment bodyList{ii}.CompileInfo.Moment];
+                info.Inertial.BaseFrame=[info.Inertial.BaseFrame bodyList{ii}.CompileInfo.BaseFrame];
             end
             
-            EOM.InertMatrix=MMat;
-            EOM.GFMatrix=FMat;
+            EffectList=[damperList;potList;forceList;torqueList];
+            info.External.Jacobian={};
+            info.External.Effect={};
+            info.External.InvolvedFrame={};
+            info.External.SubsVec={};
+            info.External.ActionFrame={};
+            info.External.ReferenceFrame={};
+            info.Input.Jacobian={};
+            info.Input.Effect={};
+            info.Input.InvolvedFrame={};
+            info.Input.SubsVec={};
+            info.Input.InputJacobian={};
+            info.Input.ActionFrame={};
+            info.Input.ReferenceFrame={};
+            for ii=1:numel(EffectList)
+                if any(any(EffectList{ii}.CompileInfo.InputJacobian~=0)~=0)
+                    info.Input.Jacobian=[info.Input.Jacobian {EffectList{ii}.CompileInfo.Jacobian}];
+                    info.Input.Effect=[info.Input.Effect {EffectList{ii}.CompileInfo.Effect}];
+                    info.Input.InvolvedFrame=[info.Input.InvolvedFrame {EffectList{ii}.CompileInfo.InvolvedFrame}];
+                    info.Input.SubsVec=[info.Input.SubsVec {EffectList{ii}.CompileInfo.SubsVec}];
+                    info.Input.InputJacobian=[info.Input.InputJacobian {EffectList{ii}.CompileInfo.InputJacobian}];
+                    info.Input.ReferenceFrame=[info.Input.ReferenceFrame {EffectList{ii}.CompileInfo.ReferenceFrame}];
+                    info.Input.ActionFrame=[info.Input.ActionFrame {EffectList{ii}.CompileInfo.ActionFrame}];
+                else
+                    info.External.Jacobian=[info.External.Jacobian {EffectList{ii}.CompileInfo.Jacobian}];
+                    info.External.Effect=[info.External.Effect {EffectList{ii}.CompileInfo.Effect}];
+                    info.External.InvolvedFrame=[info.External.InvolvedFrame {EffectList{ii}.CompileInfo.InvolvedFrame}];
+                    info.External.SubsVec=[info.External.SubsVec {EffectList{ii}.CompileInfo.SubsVec}];
+                    info.External.ReferenceFrame=[info.External.ReferenceFrame {EffectList{ii}.CompileInfo.ReferenceFrame}];
+                    info.External.ActionFrame=[info.External.ActionFrame {EffectList{ii}.CompileInfo.ActionFrame}];
+                end
+            end
+            
+            info.Constraint.Jacobian={};
+            info.Constraint.Coriolis={};
+            info.Constraint.GFFactor={};
+            info.Constraint.InvolvedFrame={};
+            info.Constraint.SubsVec={};
+            for ii=1:numel(consList)
+                info.Constraint.Jacobian=[info.Constraint.Jacobian {consList{ii}.CompileInfo.Jacobian}];
+                info.Constraint.Coriolis=[info.Constraint.Coriolis {consList{ii}.CompileInfo.Coriolis}];
+                info.Constraint.GFFactor=[info.Constraint.GFFactor {consList{ii}.CompileInfo.GFFactor}];
+                info.Constraint.InvolvedFrame=[info.Constraint.InvolvedFrame {consList{ii}.CompileInfo.InvolvedFrame}];
+                info.Constraint.SubsVec=[info.Constraint.SubsVec {consList{ii}.CompileInfo.SubsVec}];
+            end
         end
     end
 end

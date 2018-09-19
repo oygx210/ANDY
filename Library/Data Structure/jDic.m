@@ -75,7 +75,7 @@ classdef jDic < jObj
             end
             
             if(isempty(index))
-                output=[];
+                output={};
                 return;
             end
             

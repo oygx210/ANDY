@@ -22,8 +22,14 @@ classdef kPot < kEffect
             end
             
             inDirVector=pDiff(inVector,obj.System.TimeVar);
+            [NHSym,NHExpr]=obj.System.getNHSignalVector();
+            NHdt=[];
+            if ~isempty(NHSym)
+                NHdt=pDiff(NHSym,obj.System.TimeVar);
+            end
+            inDirVector=jSimplify(subs(inDirVector,NHdt,NHExpr));
                         
-            obj.setProp(-inParameter,inDirVector,inVector);
+            obj.setProperty(inDirVector,-inParameter,inVector);
         end
     end
 end

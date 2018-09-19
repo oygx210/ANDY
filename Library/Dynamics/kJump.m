@@ -1,5 +1,6 @@
 classdef kJump < jEdge
     properties(SetAccess=protected)
+        RewriteWarning=false;
     end
     
     methods(Access=public)
@@ -7,29 +8,20 @@ classdef kJump < jEdge
             obj@jEdge(inName,inFlow1,inFlow2);
         end
         
-        function obj=makeJump(obj,inExpr)
-            ui=input(obj.msgStr('Warning','Making new jump file will erase existing jump file data, do you want to continue?(''Y'' for YES, anything else for NO)'),'s');
-            if(~strcmp(ui,'Y'))
-                return;
+        function obj=setRewriteWarning(obj,inBool)
+            obj.RewriteWarning=inBool;
+        end
+        
+        function obj=makeGuardReset(obj,inGuard,inRemap)
+            if(obj.RewriteWarning)
+                ui=input(obj.msgStr('Warning','Making new jump file will erase existing jump file data, do you want to continue? (''Y'' for YES, anything else for NO) '),'s');
+                if(~strcmp(ui,'Y'))
+                    return;
+                end
             end
-            if(~obj.Net.IsInitialized)
-                obj.Net.Init();
-            end
-            fileDir=obj.Net.Directory;
-            cd(fileDir);
+            
             paramSym=obj.Net.Parameter(:,1);
             paramVal=obj.Net.Parameter(:,2);
-            funcName=obj.jumpTagStr([]);
-            funcid=fopen(strcat(funcName,'.m'),'w');
-            tmpContent=fReadLine('jumpTemplate.tm');
-            tmpContent=strrep(tmpContent,'FUNCNAME_',obj.jumpTagStr([]));
-            tmpContent=strrep(tmpContent,'FROMFLOW_',num2str(obj.EdgeNumber(1)));
-            tmpContent=strrep(tmpContent,'TOFLOW_',num2str(obj.EdgeNumber(2)));
-            fWriteLine(funcid,tmpContent);
-            
-            act=sym('ACT');
-            flow=sym('FLOW');
-            count=sym('COUNT');
             t=obj.Net.System.TimeVar;
             q=obj.Net.Continuous;
             if isempty(q)
@@ -53,28 +45,69 @@ classdef kJump < jEdge
                 l=sym('CONSSYM');
             end
             
-            if((isa(inExpr,'cell'))&&(~isempty(inExpr)))
-                exprSize=size(inExpr);
+            fileDir=obj.Net.Directory;
+            cd(fileDir);
+            
+            funcName=obj.jumpTagStr([]);
+            funcid=fopen(strcat(funcName,'.m'),'w');
+            tmpContent=fReadLine('guardReset.tm');
+            tmpContent=strrep(tmpContent,'FUNCNAME_',obj.jumpTagStr([]));
+            tmpContent=strrep(tmpContent,'FROMFLOW_',num2str(obj.EdgeNumber(1)));
+            tmpContent=strrep(tmpContent,'TOFLOW_',num2str(obj.EdgeNumber(2)));
+            tmpContent=strrep(tmpContent,'SYSTEM_',num2str(obj.Net.System.tagStr('System')));
+            
+            endNodeCons=obj.EndNode.CompileInfo.ConsContent;
+            tmpContent=strrep(tmpContent,'CONSNUM_',strcat('[',num2str(endNodeCons),']'));
+            
+            condName=obj.jumpTagStr('Condition_');
+            condExpr=subs(inGuard,paramSym,paramVal);
+            tmpContent=strrep(tmpContent,'CONDITION_',condName);
+            matlabFunction(condExpr,'File',strcat(condName,'.mx'),'Vars',{t,q,p,u,s,l});
+            
+            resetBook={};
+            resetFunc={};
+            if((isa(inRemap,'cell'))&&(~isempty(inRemap)))
+                exprSize=size(inRemap);
                 if(exprSize(2)==2)
-                    if isempty(obj.EndNode.EOM.ConsVector)
-                        consExpr=zeros(numel(q),1);
-                    else
-                        consExpr=obj.EndNode.EOM.ConsJacobian;
-                    end
-                    inExpr=[inExpr;{'JCons' consExpr}];
-                    for ii=1:exprSize(1)+1
-                        realExpr=jSimplify(subs(inExpr{ii,2},paramSym,paramVal));
-                        matlabFunction(realExpr,'File',strcat(inExpr{ii,1},'.mx'),'Vars',{act,flow,count,t,q,p,u,s,l});
-                        fWriteLine(funcid,[fReadLine(strcat(inExpr{ii,1},'.mx'));'end'],1);
+                    for ii=1:exprSize(1)
+                        realExpr=subs(inRemap{ii,2},paramSym,paramVal);
+                        isinQ=find(ismember(q,inRemap{ii,1}));
+                        isinP=find(ismember(p,inRemap{ii,1}));
+                        isinS=find(ismember(s,inRemap{ii,1}));
+                        varStr=[];
+                        if ~isempty(isinQ)
+                            varStr=strcat('q(',num2str(isinQ),')');
+                        elseif ~isempty(isinP)
+                            varStr=strcat('p(',num2str(isinP),')');
+                        elseif ~isempty(isinS)
+                            varStr=strcat('s(',num2str(isinS),')');
+                        else
+                            error(obj.msgStr('Error','Invalid Variable for Reset Map!'));
+                        end
+                        resetMapperName=obj.jumpTagStr(strcat('Remapper_',num2str(ii)));
+                        resetBook=[resetBook; ...
+                                   strcat(varStr,'=',resetMapperName,'(t,q,p,u,s,l);');
+                                   ];
+                        matlabFunction(realExpr,'File',...
+                                       strcat(resetMapperName,'.mx'),...
+                                       'Vars',{t,q,p,u,s,l});
+                        resetFunc=[resetFunc;{fReadLine(strcat(resetMapperName,'.mx'))}];
                     end
                 else
-                    error(obj.msgStr('Error','The Input should be a cell with format {<''name''> <sym>;...}!'));
+                    error(obj.msgStr('Error','The Input should be a cell with format {<state> <sym>;...}!'));
                 end
             end
+            
+            fWriteLine(funcid,tmpContent);
+            fWriteLine(funcid,resetBook,1);
+            fWriteLine(funcid,[fReadLine(strcat(condName,'.mx'));'end'],1);
+            for ii=1:numel(resetFunc)
+                fWriteLine(funcid,[resetFunc{ii};'end'],1);
+            end
             fWriteLine(funcid,{'end'});
-            delete('*.mx');
             fclose(funcid);
             
+            delete('*.mx');
             cd('..');
         end
         

@@ -19,9 +19,9 @@ classdef kTorque < kEffect
             
             obj@kEffect(inName,inBody.System,inBaseFrame,inDirFrame);
             obj.setType(3,1);
-            
-            obj.Parameter=obj.ReferenceFrame.rootRotMat;
-            obj.DirVector=obj.BaseFrame.rootAngVel;
+%             
+%             obj.Parameter=obj.ReferenceFrame.rootRotMat;
+%             obj.DirVector=obj.BaseFrame.rootAngVel;
             
             obj.Body=inBody;
             obj.Body.Torque.reg(obj);
@@ -34,7 +34,7 @@ classdef kTorque < kEffect
                 error(obj.msgStr('Error','The Torque Value need to be a 3*1 sym!'));
             end
             
-            obj.setProperty(obj.Parameter,obj.DirVector,inVal);
+            obj.setProperty(obj.BaseFrame.getAngSym(1),sym(eye(3,3)),inVal);
         end
     end
 end

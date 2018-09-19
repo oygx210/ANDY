@@ -86,72 +86,34 @@ classdef kBody < kSysObj
             obj.GFMatrix=inGF;
         end
         
+        function obj=compile(obj)
+            obj.CompileInfo.BaseFrame=obj.BaseFrame.NodeNumber;
+            obj.CompileInfo.Mass=obj.Mass;
+            obj.CompileInfo.Moment=obj.Moment;
+        end
+        
         function [MMat,FMat]=genInertia(obj,varargin)
             disp(obj.msgStr('Message',['Generating Inertia Matrix and Coriolis Force...']));
             
-            dtVec=obj.System.getContVector(1);
-            ddtVec=obj.System.getContVector(2);
-            
-            if nargin==2
-                simpStyle=string(varargin{1});
-            else
-                simpStyle='Full';
-            end
-            
             rotor=obj.BaseFrame.rootRotMat();
-            if(simpStyle=="Full")||(simpStyle=="Half")
-                rotor=jSimplify(rotor);
-            end
-            
             m=obj.Mass;
             I=rotor*obj.Moment*rotor.';
-            v=obj.BaseFrame.rootTransVel;
             w=obj.BaseFrame.rootAngVel;
-            a=obj.BaseFrame.rootTransAcc;
-            alpha=obj.BaseFrame.rootAngAcc;
+            a=obj.BaseFrame.rootCorTransAcc;
+            alpha=obj.BaseFrame.rootCorAngAcc;
             
-            if(simpStyle=="Full")||(simpStyle=="Half")
-                m=jSimplify(m);
-                I=jSimplify(I);
-                v=jSimplify(v);
-                w=jSimplify(w);
-                a=jSimplify(a);
-                alpha=jSimplify(alpha);
-            end
-            
-            if(~isa(dtVec,'sym'))
-                error(obj.msgStr('Error','Generalized Velocity Vector need to be sym!'));
-            end
-            if(~isa(ddtVec,'sym'))
-                error(obj.msgStr('Error','Generalized Velocity Vector need to be sym!'));
-            end
-            
-            dtVec=reshape(dtVec,[],1);
-            ddtVec=reshape(ddtVec,[],1);
-            
-            vJacobian=jacobian(v,dtVec);
-            wJacobian=jacobian(w,dtVec);
-            
-            if(simpStyle=="Full")||(simpStyle=="Half")
-                vJacobian=jSimplify(vJacobian);
-                wJacobian=jSimplify(wJacobian);
-            end
+            vJacobian=obj.BaseFrame.rootTransJacobian;
+            wJacobian=obj.BaseFrame.rootAngJacobian;
             
             MMat=vJacobian.'*m*vJacobian+wJacobian.'*I*wJacobian;
-            
-            if(simpStyle=="Full")
-                MMat=jSimplify(MMat);
-            end
-            
-%             FMat=MMat*ddtVec-vJacobian.'*m*a-wJacobian.'*(I*alpha+cross(w,I*w));
-            FMat=subs(-vJacobian.'*m*a-wJacobian.'*(I*alpha+cross(w,I*w)),ddtVec,zeros(numel(ddtVec),1));
-            
-            if(simpStyle=="Full")
-                FMat=jSimplify(FMat);
-            end
+            FMat=-vJacobian.'*m*a-wJacobian.'*(I*alpha+cross(w,I*w));
             
             obj.InertMatrix=MMat;
             obj.GFMatrix=FMat;
+            
+            obj.CompileInfo.Mass=obj.Mass;
+            obj.CompileInfo.Moment=obj.Moment;
+            obj.CompileInfo.BaseFrame=obj.BaseFrame.NodeNumber;
         end
         
         function output=genKineticEnergy(obj)

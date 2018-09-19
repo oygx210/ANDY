@@ -20,7 +20,7 @@ classdef kDamper < kEffect
                 inParameter=sym(diag(inParameter));
             end
                         
-            obj.setProperty(-inParameter,inVector,inVector);
+            obj.setProperty(inVector,-inParameter,inVector);
         end
     end
 end

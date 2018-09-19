@@ -2,11 +2,15 @@ classdef kSysObj < jObj
     %Element in the System which are established based on the Coordinate
     %Frames
     properties(SetAccess=protected)
+        InvolvedFrame=[];
+        
         System;
         TimeVar;
         
         BaseFrame;
         ReferenceFrame;
+        
+        CompileInfo;
     end
     
     methods(Access=public)
@@ -35,6 +39,17 @@ classdef kSysObj < jObj
             else
                 error(obj.msgStr('Error','The Third Input Need to be <kFrame> or the NameTag of <kFrame>!'));
             end
+        end
+        
+        function obj=setInvolvedFrame(obj,inVarList)
+            for ii=1:numel(inVarList)
+                curVar=char(inVarList(ii));
+                curFrame=getSymTag(curVar,'FRAME');
+                if ~isempty(curFrame)
+                    obj.InvolvedFrame(end+1)=str2num(curFrame);
+                end
+            end
+            obj.InvolvedFrame=unique(obj.InvolvedFrame);
         end
     end
 end

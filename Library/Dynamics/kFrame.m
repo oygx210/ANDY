@@ -1,5 +1,5 @@
 classdef kFrame < jNode
-    properties(SetAccess=protected)
+    properties(SetAccess=protected)        
         IsRoot=false;
         RootChain=[];
     end
@@ -7,7 +7,22 @@ classdef kFrame < jNode
     methods(Access=public)
         function obj=kFrame(inName,inNet)
             obj@jNode(inName,inNet);
-            obj.Net.System.Model.setInit(false);
+%             obj.Net.System.Model.setInit(false);
+        end
+        
+        function output=getTransSym(obj,order)
+            output=[sym(strcat('tx__FRAME_',num2str(obj.NodeNumber),'__dt_',num2str(order),'_'),'real');...
+                    sym(strcat('ty__FRAME_',num2str(obj.NodeNumber),'__dt_',num2str(order),'_'),'real');...
+                    sym(strcat('tz__FRAME_',num2str(obj.NodeNumber),'__dt_',num2str(order),'_'),'real')];
+        end
+        
+        function output=getAngSym(obj,order)
+            if(order==0)
+                error(obj.msgStr('Error','Input order need to be one!'));
+            end
+            output=[sym(strcat('ax__FRAME_',num2str(obj.NodeNumber),'__dt_',num2str(order),'_'),'real');...
+                    sym(strcat('ay__FRAME_',num2str(obj.NodeNumber),'__dt_',num2str(order),'_'),'real');...
+                    sym(strcat('az__FRAME_',num2str(obj.NodeNumber),'__dt_',num2str(order),'_'),'real')];
         end
         
         function obj=setRoot(obj,inBool)
@@ -117,6 +132,31 @@ classdef kFrame < jNode
             end
         end
         
+        function output=rootCorTransAcc(obj)
+            output=zeros(3,1);
+            vel=zeros(3,1);
+            tfChain=eye(4,4);
+            linkChain=obj.Net.path(obj.Net.RootFrame,obj);
+            if isempty(linkChain)
+                return
+            else
+                chainNum=numel(linkChain);
+                for ii=chainNum:-1:1
+                    rotor=linkChain{ii}.RotMat;
+                    disChain=rotor*tfChain(1:3,4);
+                    output= linkChain{ii}.CorTransAcc...
+                            +cross(linkChain{ii}.CorAngAcc,disChain)...
+                            +rotor*output...
+                            +2*cross(linkChain{ii}.AngVel,rotor*vel)...
+                            +cross(linkChain{ii}.AngVel,cross(linkChain{ii}.AngVel,disChain));
+                    vel=    linkChain{ii}.TransVel...
+                            +rotor*vel...
+                            +cross(linkChain{ii}.AngVel,disChain);
+                    tfChain=linkChain{ii}.FTF()*tfChain;
+                end
+            end
+        end
+        
         function output=rootRotMat(obj)
             rootTFMat=obj.rootTF();
             output=rootTFMat(1:3,1:3);
@@ -148,6 +188,57 @@ classdef kFrame < jNode
                             +linkChain{ii}.RotMat*output...
                             +cross(linkChain{ii}.AngVel,linkChain{ii}.RotMat*vel);
                     vel=linkChain{ii}.AngVel+linkChain{ii}.RotMat*vel;
+                end
+            end
+        end
+ 
+        function output=rootCorAngAcc(obj)
+            output=zeros(3,1);
+            vel=zeros(3,1);
+            linkChain=obj.Net.path(obj.Net.RootFrame,obj);
+            if isempty(linkChain)
+                return
+            else
+                chainNum=numel(linkChain);
+                for ii=chainNum:-1:1
+                    output= linkChain{ii}.CorAngAcc...
+                            +linkChain{ii}.RotMat*output...
+                            +cross(linkChain{ii}.AngVel,linkChain{ii}.RotMat*vel);
+                    vel=linkChain{ii}.AngVel+linkChain{ii}.RotMat*vel;
+                end
+            end
+        end
+        
+        function output=rootTransJacobian(obj)
+            output=0;
+            tfChain=eye(4,4);
+            linkChain=obj.Net.path(obj.Net.RootFrame,obj);
+            if isempty(linkChain)
+                return
+            else
+                chainNum=numel(linkChain);
+                output=0*linkChain{end}.TransJacobian;
+                for ii=chainNum:-1:1
+                    rotor=linkChain{ii}.RotMat;
+                    disChain=rotor*tfChain(1:3,4);
+                    output= linkChain{ii}.TransJacobian...
+                            +rotor*output...
+                            -skew3(disChain)*linkChain{ii}.AngJacobian;
+                    tfChain=linkChain{ii}.FTF()*tfChain;
+                end
+            end
+        end
+        
+        function output=rootAngJacobian(obj)
+            output=0;
+            linkChain=obj.Net.path(obj.Net.RootFrame,obj);
+            if isempty(linkChain)
+                return
+            else
+                chainNum=numel(linkChain);
+                output=0*linkChain{end}.AngJacobian;
+                for ii=chainNum:-1:1
+                    output=linkChain{ii}.AngJacobian+linkChain{ii}.RotMat*output;
                 end
             end
         end

@@ -24,25 +24,42 @@ classdef kEffect < kSysObj
         
         function GF=genGF(obj,varargin)
             disp(obj.msgStr('Message',['Generating Generalized Force...']));
-            
-            if nargin==2
-                simpStyle=string(varargin{1});
-            else
-                simpStyle="Full";
-            end
-            
-            if(simpStyle=="Full")
-                obj.DirVector=jSimplify(obj.DirVector);
-                obj.Parameter=jSimplify(obj.Parameter);
-                obj.MagVector=jSimplify(obj.MagVector);
-            end
+            obj.DirVector=jSimplify(obj.DirVector);
+            obj.Parameter=jSimplify(obj.Parameter);
+            obj.MagVector=jSimplify(obj.MagVector);
             
             dtVec=obj.System.getContVector(1);
-            Jacobian=jacobian(obj.DirVector,dtVec);
-            if(simpStyle=="Full")||(simpStyle=="Half")
+            if isa(obj,'kForce')
+%                 Jacobian=obj.BaseFrame.rootTransJacobian();
+                  Jacobian=0;
+            elseif isa(obj,'kTorque')
+%                 Jacobian=obj.BaseFrame.rootAngJacobian();
+                  Jacobian=0;
+            else
+                Jacobian=jacobian(obj.DirVector,dtVec);
                 Jacobian=jSimplify(Jacobian);
             end
             
+            if(~isempty(obj.InvolvedFrame))
+                FrameList=obj.System.Space.getNode(obj.InvolvedFrame);
+                FrameVec=sym(zeros(3,numel(obj.InvolvedFrame)));
+                dtFrameVec=sym(zeros(6,numel(obj.InvolvedFrame)));
+                SubVec=sym(zeros(3,numel(obj.InvolvedFrame)));
+                dtSubVec=sym(zeros(6,numel(obj.InvolvedFrame)));
+                FrameJacobian=sym(zeros(6,numel(dtVec),numel(obj.InvolvedFrame)));
+                for ii=1:numel(FrameList)
+                    curFrame=FrameList{ii};
+                    FrameVec(:,ii)=curFrame.getTransSym(0);
+                    dtFrameVec(1:3,ii)=curFrame.getTransSym(1);
+                    dtFrameVec(4:6,ii)=curFrame.getAngSym(1);
+                    SubVec(:,ii)=curFrame.rootTransDis();
+                    dtSubVec(1:3,ii)=curFrame.rootTransVel();
+                    dtSubVec(4:6,ii)=curFrame.rootAngVel();
+                    FrameJacobian(1:3,:,ii)=curFrame.rootTransJacobian();
+                    FrameJacobian(4:6,:,ii)=curFrame.rootAngJacobian();
+                    Jacobian=Jacobian+jacobian(obj.DirVector,dtFrameVec(:,ii))*FrameJacobian(:,:,ii);
+                end
+            end
             if(rem(obj.Power,2)==1)
                 Effect=obj.Parameter*obj.MagVector.^obj.Power;
             else
@@ -51,14 +68,49 @@ classdef kEffect < kSysObj
                 Effect=obj.Parameter*(VectorDir.*abs(obj.MagVector.^obj.Power));
             end
             
-            if(simpStyle=="Full")||(simpStyle=="Half")
-                Effect=jSimplify(Effect);
+            obj.CompileInfo.ReferenceFrame=0;
+            obj.CompileInfo.ActionFrame=0;
+            obj.CompileInfo.Effect=Effect;
+            
+            if isa(obj,'kForce')||isa(obj,'kTorque')
+                Effect=obj.ReferenceFrame.rootRotMat*Effect;
+                obj.CompileInfo.ReferenceFrame=[obj.ReferenceFrame.NodeNumber];
+                if isa(obj,'kForce')
+                    obj.CompileInfo.ActionFrame=[obj.BaseFrame.NodeNumber];%Indicates Translational Jacobian;
+                else
+                    obj.CompileInfo.ActionFrame=-[obj.BaseFrame.NodeNumber];%Indicates Angular Jacobian;
+                end
             end
+            
             GF=Jacobian.'*Effect;
-            if(simpStyle=="Full")
-                GF=jSimplify(GF);
+            %Important Note: Control input symbolic variables should not 
+            %be concealed in any intermediate factors, appear in direction
+            %vector or appear with a order higher than 2, otherwise they
+            %will be ignored as normal forces.
+            
+            inputJacobian=sym(0);
+            if ~isempty(obj.System.getInputVector())
+                inputJacobian=jacobian(Effect,obj.System.getInputVector());
+            end
+            
+            TempVec=[];
+            if(~isempty(obj.InvolvedFrame))            
+                for ii=1:numel(obj.InvolvedFrame)
+                    TempVec=[TempVec [FrameVec(:,ii);dtFrameVec(:,ii)]];
+                    GF=subs(GF,[FrameVec(:,ii);dtFrameVec(:,ii)],[SubVec(:,ii);dtSubVec(:,ii)]);
+                end
             end
             obj.GFMatrix=GF;
+            
+            %Compile Info Collection
+            obj.CompileInfo.InvolvedFrame=0;
+            obj.CompileInfo.SubsVec=sym('SUBSVECTOR__');
+            if ~isempty(obj.InvolvedFrame)
+                obj.CompileInfo.InvolvedFrame=obj.InvolvedFrame;
+                obj.CompileInfo.SubsVec=TempVec;
+            end
+            obj.CompileInfo.Jacobian=Jacobian;
+            obj.CompileInfo.InputJacobian=inputJacobian;
         end
     end
     
@@ -77,7 +129,7 @@ classdef kEffect < kSysObj
             end
         end
         
-        function obj=setProperty(obj,inPara,inDir,inMag)
+        function obj=setProperty(obj,inDir,inPara,inMag)
             paraSize=size(inPara);
             dirSize=size(inDir);
             magSize=size(inMag);
@@ -98,6 +150,8 @@ classdef kEffect < kSysObj
             else
                 error(obj.msgStr('Error','MagVector Size does not match dimension or is not <sym>!'));
             end
+            
+            obj.setInvolvedFrame(unique([symvar(inPara),symvar(inDir),symvar(inMag)]));
         end
     end
 end
