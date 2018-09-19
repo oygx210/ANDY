@@ -8,17 +8,22 @@ Please contact Jiamin Wang (PhD Student at RM-Lab) - jmechw@vt.edu for technical
 
 MATLAB Version Requirement: 2017 or later.
 
-## Latest Notification (04/23/2018)
-1. New version available on request, please contact jmechw@vt.edu if you want the latest version of ANDY.
+## Latest Notification (09/19/2018)
+1. Algorithm refined to achieve significant efficiency improvement. Added the example of Quadruped.
 
 ## Examples
 To run the examples, please make sure that the library is in the correct relative path with respect to your modeling script, [PathSetup.m] will help you setup the library path profiles. Modify if necessary.
 
-The current examples contains <Passive Walker> and <Swing Bar>
+The current examples contains <Passive Walker>, <Quadruped> and <Swing Bar>
   
-For <Passive Walker>: Run [PassiveWalker_Simulation.m] if you are only interested in the 3D animation (Uncomment the PathSetup); Run [PassiveWalker_Modeling.m] only when you aer interested in the modeling process.
+For <Passive Walker>: Run [Modeling.m] for modeling process; Then run [Simulation.m] to see 3D simulation; 
 
+For <Quadruped>: Run [Modeling.m] for modeling process; Then run [Simulation.m] to see 3D simulation; 
+  
 For <Swing>: Run Modeling and Simulation in [SwingBar.m].
+
+## Past Notification (04/23/2018)
+1. New version available on request, please contact jmechw@vt.edu if you want the latest version of ANDY.
 
 ## Past Notification (04/16/2018)
 Future updates will be made consistantly to improve calculation efficiency and include analytical tools.
