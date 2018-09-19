@@ -20,8 +20,9 @@ classdef sPlot<jObj
             obj.PlotPoint{1}=obj.Axes.Frame.get('WORLD');
         end
         
-        function obj=setLineSpec(obj,inLineStyle,inLineColor,inLineWidth)
+        function obj=setLineSpec(obj,inLineStyle,inMarkerStyle,inLineColor,inLineWidth)
             obj.Handle.set('LineStyle',inLineStyle);
+            obj.Handle.set('Marker',inMarkerStyle);
             obj.Handle.set('Color',inLineColor);
             obj.Handle.set('LineWidth',inLineWidth);
         end

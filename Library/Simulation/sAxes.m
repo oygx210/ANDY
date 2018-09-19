@@ -12,6 +12,7 @@ classdef sAxes<jObj
         
         Frame;
         TFMap;
+        TFFunc;
         
         Plot=[];
         Patch=[];
@@ -28,7 +29,7 @@ classdef sAxes<jObj
             tf=load(FrameList);
             obj.Frame=jDic(obj.tagStr('Parameter'),'double');
             obj.Frame=obj.Frame.reg(tf.TFPath(:,1),tf.TFPath(:,2));
-            obj.TFMap=TFMapFunc;
+            obj.TFFunc=TFMapFunc;
             obj.genPatch({'WORLD_FRAME','WORLD'});
             obj.OriginTFChain=obj.Frame.get('WORLD');
             obj.PresetTFChain=obj.Frame.get('WORLD');
@@ -89,7 +90,7 @@ classdef sAxes<jObj
         end
         
         function obj=setPOV(obj)
-            AxesLimit=obj.AxesRange+obj.AxesShift;
+            AxesLimit=obj.AxesRange+[obj.AxesShift;obj.AxesShift];
             obj.AxesHandle.set('XLim',AxesLimit(:,1).');
             obj.AxesHandle.set('YLim',AxesLimit(:,2).');
             obj.AxesHandle.set('ZLim',AxesLimit(:,3).');
@@ -97,6 +98,8 @@ classdef sAxes<jObj
         end
         
         function obj=drawNow(obj,t,q,p,u,s)
+            obj.TFMap=obj.TFFunc(t,q,p,u,s);
+            
             for ii=1:numel(obj.Patch)
                 obj.Patch(ii).drawPatch(t,q,p,u,s);
             end
@@ -109,18 +112,21 @@ classdef sAxes<jObj
             obj.AxesShift=camTF(1:3,4).';
             obj.setPOV();
             
-            drawnow('limitrate')
+            drawnow('limitrate');
         end
         
         function TF=getTF(obj,TFChain,t,q,p,u,s)
-            TF=eye(4,4);
-            for ii=numel(TFChain):-1:2
-                TF=(obj.TFMap(TFChain(ii),t,q,p,u,s)*TF);
-            end
-            PreTF=eye(4,4);
-            for ii=numel(obj.PresetTFChain):-1:2
-                PreTF=(obj.TFMap(obj.PresetTFChain(ii),t,q,p,u,s)*PreTF);
-            end
+%             TF=eye(4,4);
+%             for ii=numel(TFChain):-1:2
+%                 TF=(obj.TFMap(TFChain(ii),t,q,p,u,s)*TF);
+%             end
+            TF=obj.TFMap(:,:,TFChain(end));
+            
+%             PreTF=eye(4,4);
+%             for ii=numel(obj.PresetTFChain):-1:2
+%                 PreTF=(obj.TFMap(obj.PresetTFChain(ii),t,q,p,u,s)*PreTF);
+%             end
+            PreTF=obj.TFMap(:,:,obj.PresetTFChain(end));
             TF=PreTF\TF;
         end
     end

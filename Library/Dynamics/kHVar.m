@@ -8,6 +8,10 @@ classdef kHVar < jObj & sym
             obj@jObj(inDes);
             obj@sym(inName,'real');
             
+            if ~isempty(strfind(inName,'__'))
+                error(obj.msgStr('Error','''__''is forbidden in Symbolic Variable Naming!'));
+            end
+            
             if(isa(inSys,'kSystem'))
                 obj.System=inSys;
                 obj.System.Model.setInit(false);

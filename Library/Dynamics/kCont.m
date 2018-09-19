@@ -8,7 +8,7 @@ classdef kCont < kNHVar
         end
         
         function obj=setInitVal(obj,inInitVal)
-            if(numel(inInitVal)~=2)
+            if(numel(inInitVal)~=obj.Order)
                 error(obj.msgStr('Error','The kCoord must be 2nd Order Differentiable!'));
             else
                 obj.InitVal=reshape(inInitVal,[],1);

@@ -2,6 +2,8 @@ classdef kFlow < jNode
     properties(SetAccess=protected)
         Constraint=[];
         
+        CompileInfo;
+        
         EOM=[];
     end
     
@@ -15,13 +17,21 @@ classdef kFlow < jNode
             if(~obj.Net.IsInitialized)
                 obj.Net.Init();
             end
-            obj.EOM.InertMatrix=obj.Net.BaseEOM.InertMatrix;
-            obj.EOM.GFMatrix=obj.Net.BaseEOM.GFMatrix;
             ConsEOM=obj.Net.System.getConsSet(inCons);
             obj.EOM.ConsVector=ConsEOM.ConsVector;
             obj.EOM.ConsJacobian=ConsEOM.ConsJacobian;
             obj.EOM.ConsCoriolis=ConsEOM.ConsCoriolis;
-            obj.EOM.ConsGFMatrix=ConsEOM.ConsGFMatrix;          
+            obj.EOM.ConsGFMatrix=ConsEOM.ConsGFMatrix;
+            
+            obj.CompileInfo.ConsContent=0;
+            if(numel(obj.Constraint)>0)
+                obj.CompileInfo.ConsContent=[];
+            end
+            for ii=1:numel(obj.Constraint)
+                consNum=find(ismember(obj.Net.System.Constraint.Content,obj.Constraint{ii}));
+                obj.CompileInfo.ConsContent=[obj.CompileInfo.ConsContent consNum];
+            end
+            obj.CompileInfo.ConsContent=unique(obj.CompileInfo.ConsContent);
         end
         
         function obj=makeFlow(obj)
@@ -39,13 +49,9 @@ classdef kFlow < jNode
                 end
                 ConsGFMatrix=0;
                 cgf=obj.EOM.ConsGFMatrix;
-                parfor ii=1:numel(cgf(1,:))
-                    ConsGFMatrix=ConsGFMatrix+jSimplify(subs(cgf(:,ii),paramSym,paramVal));
+                for ii=1:numel(cgf(1,:))
+                    ConsGFMatrix=ConsGFMatrix+(subs(cgf(:,ii),paramSym,paramVal));
                 end
-                parfor ii=1:numel(ConsGFMatrix)
-                    ConsGFMatrix(ii,1)=jSimplify(ConsGFMatrix(ii,1));
-                end
-%                 ConsGFMatrix=(sum(subs([obj.EOM.ConsGFMatrix],paramSym,paramVal),2));
                 JCons=(subs(obj.EOM.ConsJacobian,paramSym,paramVal));
                 CorMatrix=(subs(obj.EOM.ConsCoriolis,paramSym,paramVal));
             else

@@ -2,16 +2,17 @@ classdef jNet < jObj
     % jNet is the wrapper of graph network to provide utility required in ANDY.
     
     properties(SetAccess=protected)
-        Node;
-        Graph;
-        EditFunc;
+        Figure;
         Axes;
-        Handle;
+        Graph;
         
-        EdgeLabel=true;
-        GraphDir=false;
+        Node;
         NodeType='jNode';
         EdgeType='jEdge';
+        
+        GraphDir=false;
+        EdgeLabel=true;
+        EditFunc;
     end
     
     properties(Access=protected)
@@ -52,7 +53,7 @@ classdef jNet < jObj
         
         function varargout=genNode(obj,inNode)
             if isa(inNode,'char')
-                eval("newNode="+obj.NodeType+"('"+inNode+"',obj);");
+                eval(strcat('newNode=',obj.NodeType,'(''',inNode,''',obj);'));
                 varargout{1}=newNode;
             elseif isa(inNode,'cell')
                 nodeNum=numel(inNode);
@@ -75,8 +76,8 @@ classdef jNet < jObj
                 varargout=cell(edgeNum,1);
                 for ii=1:edgeNum
                     if (isa(edgeName{ii},'char')&&isa(startNode{ii},'char')&&isa(endNode{ii},'char'))
-                        eval("newEdge="+obj.EdgeType+"('"+edgeName{ii}+"',obj.Node.get('"...
-                            +startNode{ii}+"'),obj.Node.get('"+endNode{ii}+"'));");
+                        eval(strcat('newEdge=',obj.EdgeType,'(''',edgeName{ii},''',obj.Node.get(''',...
+                            startNode{ii},'''),obj.Node.get(''',endNode{ii},'''));'));
                         varargout{ii}=newEdge;
                     else
                         error(obj.msgStr('Error','Input follows the form of {Name1 StartFrame1 EndFrame1;...}'));
@@ -87,6 +88,11 @@ classdef jNet < jObj
             end
 
             obj.UpdateFlag=true;
+        end
+        
+        function output=getNode(obj,inNum)
+            curNodeList=obj.Node.Content(inNum);
+            output=obj.Node.get(curNodeList);
         end
         
         function output=collectEdge(obj)
@@ -157,12 +163,12 @@ classdef jNet < jObj
             figure(figureNum);
             obj.Axes=axes();
             [nodeTable,edgeTable]=obj.genGraph();
-            obj.Handle=plot(obj.Axes,obj.Graph);
-            obj.Handle=obj.EditFunc(obj,nodeTable,edgeTable);
+            obj.Figure=plot(obj.Axes,obj.Graph);
+            obj.Figure=obj.EditFunc(obj,nodeTable,edgeTable);
         end
         
         function GPHandle=defaultEditFunc(obj,nodeTable,edgeTable)
-            GPHandle=obj.Handle;
+            GPHandle=obj.Figure;
             set(obj.Axes,'Visible','off');
             axis('image');
             set(GPHandle,'EdgeAlpha',0.3);

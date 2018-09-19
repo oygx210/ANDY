@@ -12,6 +12,10 @@ classdef kNHVar < jObj
     methods(Access=public)
         function obj=kNHVar(inName,inSys,inDes,inOrder)
             obj@jObj(inDes);
+            
+            if ~isempty(strfind(inName,'__'))
+                error(obj.msgStr('Error','''__''is forbidden in Symbolic Variable Naming!'));
+            end
             obj.Sym=sym(inName,'real');
             
             if(isa(inSys,'kSystem'))
@@ -46,7 +50,7 @@ classdef kNHVar < jObj
             elseif(inOrd>obj.Order)
                 error(obj.msgStr('Error','Time Derivative Order must be no higher than Smoothness Order!'));
             else
-                output=sym(strcat(char(obj.Sym),'__d',char(obj.TimeVar),'_',num2str(floor(inOrd))),'real');
+                output=sym(strcat(char(obj.Sym),'__d',char(obj.TimeVar),'_',num2str(floor(inOrd)),'_'),'real');
             end
         end
         
@@ -68,14 +72,6 @@ classdef kNHVar < jObj
                 else
                     output=obj.InitVal(floor(inOrd)+1);
                 end
-            end
-            
-            if(floor(inOrd)<0)
-                error(obj.msgStr('Error','Time Derivative Order must be non-negative integer!'));
-            elseif(inOrd>obj.Order)
-                error(obj.msgStr('Error','Time Derivative Order must be no higher than Smoothness Order!'));
-            else
-                output=sym(strcat(obj.Sym,'__d',char(obj.TimeVar),'_',num2str(floor(inOrd))),'real');
             end
         end
         
