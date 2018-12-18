@@ -41,10 +41,10 @@ RRShank.setFaceProp('y',0.75).setModel('Shank.STL',1,[],0.001);
 
 
 tic
-freq=10000;
+freq=1000;
 h=1/freq;
 flow=2;
-tspan=0:h:1;
+tspan=0:h:0.25;
 initTorsoPos=[0.2;0.3;0.4;0;0;0];
 initLegPos2=[0.0749;-0.8386-0.1391;1.6570];
 initLegPos1=[0.0749;-0.8386;1.6771];
@@ -61,16 +61,28 @@ input=zeros(14,1);
 input=[legForce;legForce;legForce/15*20.5;legForce/15*20.5;-7.7;-10*sin(31.4*0)];
 nhSignal=[1;0;0;0];
 Sim.drawNow(0,[initPos;initVel],zeros(10,1),zeros(14,1),nhSignal);
+Sim.FigHandle.set('outerposition',[0 0 1000 1000])
+f = getframe;
+[im,map] = rgb2ind(f.cdata,256,'nodither');
+im(:,:,1,1) = 0;
+k=0;
 
 XYZ=diag([0.2;0.3;0.4])*ones(3,numel(tspan));
 for ii=2:numel(tspan)
     [contState,nhSignal,consForce]=rk4Hybrid(@Flow_JoeQPed_mex,h,flow,tspan(ii),contState,discState,input,nhSignal,consForce);
+    
+    input=[legForce;legForce;legForce/15*20.5;legForce/15*20.5;-7.7;-10*sin(31.4*ii*h/2)];
 
     if(rem(ii,10)==0)
         Sim.drawNow(tspan(ii),contState,discState,input,nhSignal);
+        f = getframe;
+        k=k+1;
+        im(1:size(f.cdata)*[1;0;0],1:size(f.cdata)*[0;1;0],1,k) = rgb2ind(f.cdata,map,'nodither');
     end
 end
 toc
+im=im(180:end-120,120:end-120,:,:);
+imwrite(im,map,'QPed.gif','DelayTime',0,'LoopCount',inf) %g443800
 % 
 % figure(20)
 % hold on
