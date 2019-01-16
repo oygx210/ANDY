@@ -18,6 +18,3 @@ The current examples contains <Passive Walker>, <Quadruped> and <Swing Bar>:  Ru
 
 ## Past Notification (09/19/2018)
 Algorithm refined to achieve significant efficiency improvement. Added the example of Quadruped.
-
-## Past Notification (04/23/2018)
-New version available on request, please contact jmechw@vt.edu if you want the latest version of ANDY.
