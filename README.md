@@ -4,8 +4,6 @@ Copyright@RM-Lab.
 
 Andy is a nonholonomic modeling toolbox for hybrid multibody dynamic systems.
 
-Please contact RM-Lab for technical details.
-
 MATLAB Version Requirement: 2017 or later.
 
 ## Latest Notification (12/18/2018)
