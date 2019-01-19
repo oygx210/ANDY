@@ -163,7 +163,7 @@ Frame=[LoFoot.rootTransDis,LoKnee.rootTransDis,BodyFrame.rootTransDis,LiKnee.roo
 FrameFunc=matlabFunction(subs(Frame(:,1:2),paramSym,paramVal),'Vars',{contSym});
 freq=1000;
 h=1/freq;
-tspan=0:h:5;
+tspan=0:h:6.5;
 flow=1;
 initAnglePos=0.4309;
 initAngVel=-0.1391;
@@ -176,11 +176,20 @@ consForce=zeros(6,1);
 curPos=FrameFunc(contState)*[cos(slopeAngle),-sin(slopeAngle);sin(slopeAngle),cos(slopeAngle)];
 road=[-0.5+discState(1),2.5+discState(1)].'.*[cos(slopeAngle),-sin(slopeAngle)];
 close all;
-figure(3)
+figHandle=figure(3)
 hold on
 roadHandle=plot([road(:,1)],[road(:,2)],'b','LineWidth',3);
 handle=plot([curPos(:,1)],[curPos(:,2)],'LineWidth',3);
-axis('image');
+% axis('image');
+axe=gca;
+axe.set('XLim',[-0.5 3]);
+axe.set('YLim',[-1 1.25]);
+axe.set('DataAspectRatio',[1 1 1]);
+
+f = getframe;
+[im,map] = rgb2ind(f.cdata,65536,'nodither');
+im(:,:,1,1) = 0;
+k=0;
 
 flowTrajRec=diag(flow)*ones(1,numel(tspan));
 contRec=diag(contState)*ones(12,numel(tspan));
@@ -218,11 +227,15 @@ for ii=2:numel(tspan)
     if(rem(ii,30)==0)
         handle.set('XData',[curPos(:,1)],'YData',[curPos(:,2)]);
         drawnow
+        f = getframe;
+        k=k+1;
+        im(:,:,1,k) = rgb2ind(f.cdata,map,'nodither');
         pause(0.03)
     end
 end
 hold off
 toc
+imwrite(im,map,'PWPlain.gif','DelayTime',0,'LoopCount',inf) %g443800
 
 figure(4)
 hold on

@@ -60,7 +60,10 @@ classdef kEffect < kSysObj
                     Jacobian=Jacobian+jacobian(obj.DirVector,dtFrameVec(:,ii))*FrameJacobian(:,:,ii);
                 end
             end
-            if(rem(obj.Power,2)==1)
+            
+            if(obj.Power==0)
+                Effect=obj.Parameter*ones(numel(obj.MagVector),1);
+            elseif(rem(obj.Power,2)==1)
                 Effect=obj.Parameter*obj.MagVector.^obj.Power;
             else
                 VectorDir=obj.MagVector./abs(obj.MagVector);

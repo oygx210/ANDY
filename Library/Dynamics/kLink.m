@@ -86,13 +86,19 @@ classdef kLink < jEdge
             sig=cell(4,1);
             for ii=1:4
                 nhSig=obj.Net.System.genNHSignal({char(SigArray(ii)) obj.tagStr(strcat('Quat_',num2str(ii))) 1});
-                sig{ii}=nhSig;
+                sig{ii}=nhSig;  
             end
-            obj.RotMat=Quat2Mat([sig{1}.dot(0);sig{2}.dot(0);sig{3}.dot(0);sig{4}.dot(0)]);
-            sig{1}.setExpr(-0.5*(sig{2}.dot(0)*inAngVel(1)+sig{3}.dot(0)*inAngVel(2)+sig{4}.dot(0)*inAngVel(3)));
-            sig{2}.setExpr(0.5*(sig{1}.dot(0)*inAngVel(1)+sig{4}.dot(0)*inAngVel(2)-sig{3}.dot(0)*inAngVel(3)));
-            sig{3}.setExpr(0.5*(sig{1}.dot(0)*inAngVel(2)+sig{2}.dot(0)*inAngVel(3)-sig{4}.dot(0)*inAngVel(1)));
-            sig{4}.setExpr(0.5*(sig{1}.dot(0)*inAngVel(3)+sig{3}.dot(0)*inAngVel(1)-sig{2}.dot(0)*inAngVel(2)));
+            obj.RotMat=quat2Mat([sig{1}.dot(0);sig{2}.dot(0);sig{3}.dot(0);sig{4}.dot(0)]);
+            quatVel=0.5*quatMultiply([sig{1}.dot(0);sig{2}.dot(0);sig{3}.dot(0);sig{4}.dot(0)],[0;inAngVel]);
+            
+%             sig{1}.setExpr(-0.5*(sig{2}.dot(0)*inAngVel(1)+sig{3}.dot(0)*inAngVel(2)+sig{4}.dot(0)*inAngVel(3)));
+%             sig{2}.setExpr(0.5*(sig{1}.dot(0)*inAngVel(1)+sig{4}.dot(0)*inAngVel(2)-sig{3}.dot(0)*inAngVel(3)));
+%             sig{3}.setExpr(0.5*(sig{1}.dot(0)*inAngVel(2)+sig{2}.dot(0)*inAngVel(3)-sig{4}.dot(0)*inAngVel(1)));
+%             sig{4}.setExpr(0.5*(sig{1}.dot(0)*inAngVel(3)+sig{3}.dot(0)*inAngVel(1)-sig{2}.dot(0)*inAngVel(2)));
+            sig{1}.setExpr(quatVel(1));
+            sig{2}.setExpr(quatVel(2));
+            sig{3}.setExpr(quatVel(3));
+            sig{4}.setExpr(quatVel(4));
             
             obj.AngHolo=false;
             obj.SimplifyFlag=true;
@@ -107,10 +113,10 @@ classdef kLink < jEdge
             else
                 error(obj.msgStr('Error','Input Value should be [Roll;Pitch;Yaw] (Rotation Notion is Yaw-Pitch-Roll)!'));
             end
-            obj.RotMat=YPR2Mat(yaw,pitch,roll).';
+            obj.RotMat=ypr2Mat(yaw,pitch,roll).';
             
             AngVelJacobian=[1 0 -sin(pitch);  0 cos(roll) cos(pitch)*sin(roll); 0 -sin(roll) cos(pitch)*cos(roll)];
-            obj.AngVel=AngVelJacobian*pDiff(inYPR,obj.Net.TimeVar);
+            obj.AngVel=obj.RotMat*AngVelJacobian*pDiff(inYPR,obj.Net.TimeVar);
 %             obj.AngAcc=pDiff(obj.AngVel,obj.Net.TimeVar);
             
             obj.AngHolo=true;
@@ -139,7 +145,7 @@ classdef kLink < jEdge
                 error(obj.msgStr('Error','Input Value should be [qw;qx;qy;qz]'));
             end
             
-            obj.RotMat=Quat2Mat(inQuat);
+            obj.RotMat=quat2Mat(inQuat);
 
             AngVelJacobian=2*[-qx qw -qz qy; -qy qz qw -qx; -qz -qy qx qw];
             dq=pDiff(inQuat,obj.Net.TimeVar);

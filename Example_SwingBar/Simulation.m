@@ -24,6 +24,10 @@ sigRecord(:,1)=sigState;
 posRecordX(:,1)=curPos(:,1);
 posRecordY(:,2)=curPos(:,2);
 posRecordZ(:,3)=curPos(:,3);
+
+f = getframe;
+[im,map] = rgb2ind(f.cdata,65536,'nodither');
+k=0;
 tic
 for ii=2:numel(tspan)
     [odeState,sigState,l1]=rk4Hybrid(@Flow_SwingBar_mex,h,1,tspan(ii),odeState,disc,0,sigState,0);
@@ -31,6 +35,8 @@ for ii=2:numel(tspan)
     if(rem(ii,30)==0)
         handle.set('XData',[0;curPos(:,1)],'YData',[0;curPos(:,2)],'ZData',[0;curPos(:,3)]);
         drawnow
+        k=k+1;
+        im(:,:,1,k) = rgb2ind(f.cdata,map,'nodither');
     end
     stateRecord(:,ii)=odeState;
     sigRecord(:,ii)=sigState;
@@ -39,6 +45,8 @@ for ii=2:numel(tspan)
     posRecordZ(:,ii)=curPos(:,3);
 end
 toc
+
+imwrite(im,map,'Swing Bar.gif','DelayTime',0,'LoopCount',inf) %g443800
 
 fig=figure(5);
 sub1=subplot(4,1,1);

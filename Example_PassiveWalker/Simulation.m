@@ -45,6 +45,15 @@ discState=[[0.35;0;100;0.063];[0;0]];
 input=0;
 consForce=zeros(6,1);
 tic
+
+Sim.drawNow(0,contState,discState,input,0);
+% Sim.FigHandle.set('units','normalized')
+Sim.FigHandle.set('outerposition',[0 0 1000 1000])
+f = getframe;
+[im,map] = rgb2ind(f.cdata,256,'nodither');
+im(:,:,1,1) = 0;
+k=0;
+
 for ii=2:numel(tspan)
     flow0=flow;
     [flow,~,contState,discState,~]=Jump_PassiveWalker(flow,tspan(ii),contState,discState,input,0,consForce);
@@ -52,11 +61,22 @@ for ii=2:numel(tspan)
     if(flow<0)
         break;
     end
+    
+    
+    if((ii>3000)&&(flow-flow0<0))
+        break;
+    end
+    
     [contState,~,consForce]=rk4Hybrid(@Flow_PassiveWalker_mex,h,flow,tspan(ii),contState,discState,input,0,consForce);
     
-    if(rem(ii,60)==0)
+    if(rem(ii,66)==0)
         Sim.drawNow(tspan(ii),contState,discState,input,0);
+        f = getframe;
+        k=k+1;
+        im(1:size(f.cdata)*[1;0;0],1:size(f.cdata)*[0;1;0],1,k) = rgb2ind(f.cdata,map,'nodither');
         pause(0.02);
     end
 end
 toc
+im=im(80:end-80,80:end-80,:,:);
+imwrite(im,map,'PW3D.gif','DelayTime',0,'LoopCount',inf) %g443800
