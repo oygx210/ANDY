@@ -90,11 +90,7 @@ classdef kLink < jEdge
             end
             obj.RotMat=quat2Mat([sig{1}.dot(0);sig{2}.dot(0);sig{3}.dot(0);sig{4}.dot(0)]);
             quatVel=0.5*quatMultiply([sig{1}.dot(0);sig{2}.dot(0);sig{3}.dot(0);sig{4}.dot(0)],[0;inAngVel]);
-            
-%             sig{1}.setExpr(-0.5*(sig{2}.dot(0)*inAngVel(1)+sig{3}.dot(0)*inAngVel(2)+sig{4}.dot(0)*inAngVel(3)));
-%             sig{2}.setExpr(0.5*(sig{1}.dot(0)*inAngVel(1)+sig{4}.dot(0)*inAngVel(2)-sig{3}.dot(0)*inAngVel(3)));
-%             sig{3}.setExpr(0.5*(sig{1}.dot(0)*inAngVel(2)+sig{2}.dot(0)*inAngVel(3)-sig{4}.dot(0)*inAngVel(1)));
-%             sig{4}.setExpr(0.5*(sig{1}.dot(0)*inAngVel(3)+sig{3}.dot(0)*inAngVel(1)-sig{2}.dot(0)*inAngVel(2)));
+            obj.AngVel=obj.RotMat*inAngVel;
             sig{1}.setExpr(quatVel(1));
             sig{2}.setExpr(quatVel(2));
             sig{3}.setExpr(quatVel(3));
